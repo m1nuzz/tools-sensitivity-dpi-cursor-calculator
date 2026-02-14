@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "export",
-  basePath: "/tools",
+  basePath: "/tools-sensitivity-dpi-cursor-calculator",
   images: {
     unoptimized: true,
   },

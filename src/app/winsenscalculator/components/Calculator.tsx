@@ -28,40 +28,54 @@ const sensitivities = [
 ];
 
 function DisplayDPI({
-  efDpi,
+  targetEdpi,
   multiplier,
 }: {
-  efDpi: number;
+  targetEdpi: number;
   multiplier: number;
 }) {
-  const dpi = efDpi / multiplier;
+  // Formula: RequiredDPI = Target_eDPI / New_Multiplier
+  const dpi = targetEdpi / multiplier;
 
   if (Number.isInteger(dpi)) {
     return <Table.Td>{dpi}</Table.Td>;
   }
 
   return (
-    <Tooltip label="rounded to the nearest integer">
-      <Table.Td>{`*${Math.round(dpi).toString()}`}</Table.Td>
+    <Tooltip label={`Exact: ${dpi.toString()}`}>
+      <Table.Td>{`~${Math.round(dpi).toString()}`}</Table.Td>
     </Tooltip>
   );
 }
 
 export default function Calculator() {
-  const [efDPI, setEfDPI] = React.useState<number>(1600);
+  // State for the user's PHYSICAL mouse DPI
+  const [mouseDPI, setMouseDPI] = React.useState<number>(1600);
+  
+  // State for the user's CURRENT Registry setting (1-20)
+  const [registryValue, setRegistryValue] = React.useState<number>(10);
+
+  // 1. Find the multiplier for the user's current setting
+  // registryValue is 1-based, array is 0-based
+  const currentMultiplier = sensitivities[Math.max(0, Math.min(19, registryValue - 1))][0] as number;
+
+  // 2. Calculate the "True eDPI" (Effective DPI at 1.0 multiplier)
+  // Example: 3200 DPI @ Reg 5 (0.375) = 1200 eDPI
+  const effectiveDPI = mouseDPI * currentMultiplier;
 
   return (
     <Stack>
       <Tooltip
-        label={`DPI you'd normally use @ stock setting (New Panel: 10/20 or Legacy Panel: 6/11) with "Enhance pointer precision" disabled`}
+        label={`The physical DPI set in your mouse software.`}
       >
         <div>
           <NumberInput
-            label="*eDPI (DPI @ stock)"
-            value={efDPI}
+            label="Current Mouse DPI"
+            description="Enter the DPI value currently set on your mouse"
+            value={mouseDPI}
             onChange={(value) => {
               if (typeof value === "number") {
-                setEfDPI(value);
+                setMouseDPI(value);
               }
             }}
             min={1}
@@ -74,10 +88,31 @@ export default function Calculator() {
           />
         </div>
       </Tooltip>
+
+      <Tooltip label="HKEY_CURRENT_USER\Control Panel\Mouse -> MouseSensitivity (default is 10)">
+        <div>
+          <NumberInput
+            label="Current Windows Sensitivity (1-20)"
+            description="Your current registry value / pointer speed slider position"
+            value={registryValue}
+            onChange={(value) => {
+              if (typeof value === "number") {
+                setRegistryValue(value);
+              }
+            }}
+            min={1}
+            max={20}
+            clampBehavior="strict"
+            allowNegative={false}
+            allowDecimal={false}
+          />
+        </div>
+      </Tooltip>
+
       <Table striped withColumnBorders>
         <Table.Thead>
           <Table.Tr>
-            <Table.Th className={s.alignRight}>DPI</Table.Th>
+            <Table.Th className={s.alignRight}>Required DPI</Table.Th>
             <Tooltip label="HKEY_CURRENT_USER\Control Panel\Mouse -> MouseSensitivity">
               <Table.Th className={s.alignRight}>
                 *Registry / New Panel
@@ -89,9 +124,15 @@ export default function Calculator() {
         </Table.Thead>
         <Table.Tbody>
           {sensitivities.map((row, index) => {
+            const isCurrentRow = index + 1 === registryValue;
             return (
-              <Table.Tr key={row[1]} className={s.alignRight}>
-                <DisplayDPI efDpi={efDPI} multiplier={row[0] as number} />
+              <Table.Tr 
+                key={row[1]} 
+                className={s.alignRight}
+                bg={isCurrentRow ? "var(--mantine-color-blue-light)" : undefined}
+                style={isCurrentRow ? { fontWeight: "bold" } : undefined}
+              >
+                <DisplayDPI targetEdpi={effectiveDPI} multiplier={row[0] as number} />
                 <Table.Td>{index + 1}</Table.Td>
                 <Table.Td>{row[2]}</Table.Td>
                 <Table.Td>{row[1]}</Table.Td>
